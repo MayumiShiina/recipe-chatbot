@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>料理ボット</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background-color: #f5f5f5; }
+        #chatbox { 
+            width: 90%; 
+            max-width: 500px; 
+            height: 500px; 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+            margin: 20px auto; 
+            padding: 15px; 
+            overflow-y: auto;
+        }
+        .message {
+            display: flex;
+            align-items: flex-end;
+            margin: 10px 0;
+            max-width: 80%;
+        }
+        .user { justify-content: flex-end; text-align: right; }
+        .bot { justify-content: flex-start; text-align: left; }
+        .message-content {
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            display: inline-block;
+        }
+        .user .message-content { background: #d4edda; color: #155724; }
+        .bot .message-content { background: #f0f0f0; color: #333; }
+        .timestamp { font-size: 12px; color: #888; margin-top: 5px; }
+
+        /* ボットのアイコンのスタイル */
+        .bot-icon {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+            border-radius: 50%;
+            padding: 1px; /* アイコンに余白を追加 */
+            background-color: #00a960; /* グリーンの背景 */
+        }
+
+        #input-area {
+            display: flex;
+            justify-content: center;
+            padding: 10px;
+            background: #fff;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+        #input-container {
+            display: flex;
+            align-items: center;
+            width: 90%;
+            max-width: 500px;
+            background: #eaffd0;
+            padding: 5px;
+            border-radius: 25px;
+        }
+        #userInput {
+            flex-grow: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 20px;
+            background: transparent;
+            outline: none;
+            font-size: 14px;
+        }
+        /* 送信ボタンをアイコン画像に変更 */
+        #sendButton {
+            background: #28a745;
+            border: none;
+            width: 40px;
+            height: 40px;
+            margin-left: 5px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #sendButton img {
+            width: 20px; /* アイコンサイズ */
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="chatbox"></div>
+
+    <div id="input-area">
+        <div id="input-container">
+            <input type="text" id="userInput" placeholder="レシピや食材について質問してください">
+            <button id="sendButton">
+                <img src="https://ucarecdn.com/855850ce-6c2c-4585-8155-08f4124a5a3c/kamihikoki.svg" alt="Send"> <!-- 送信アイコン -->
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "app-dt7IlcdVNdI89SHJHBBigvcN"; // DifyのAPIキーを入れる
+        const API_URL = "https://api.dify.ai/v1/chat-messages";
+        let conversationId = null;
+        const botIconURL = "https://ucarecdn.com/96b38172-6ef6-4f68-8d9f-898fbdacc7ae/cock.svg"; // **ここに手持ちのボットアイコン画像のURLを入れる**
+
+        async function startConversation() {
+            console.log("🟢 会話を開始します...");
+            try {
+                let response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        query: "会話を開始します",
+                        user: "test_user",
+                        response_mode: "blocking",
+                        inputs: {}
+                    })
+                });
+
+                let data = await response.json();
+                if (data.conversation_id) {
+                    conversationId = data.conversation_id;
+                } else {
+                    displayError("❌ conversation_id の取得に失敗しました: " + JSON.stringify(data));
+                }
+            } catch (error) {
+                displayError("❌ APIリクエストに失敗: " + error.message);
+            }
+        }
+
+        document.getElementById("sendButton").addEventListener("click", async function() {
+            let userMessage = document.getElementById("userInput").value;
+            if (!userMessage) {
+                displayError("⚠ 入力欄が空です。質問を入力してください。");
+                return;
+            }
+
+            if (!conversationId) {
+                await startConversation();
+                if (!conversationId) {
+                    displayError("会話の開始に失敗しました。");
+                    return;
+                }
+            }
+
+            addMessage(userMessage, "user");
+
+            // 入力欄をクリア
+            document.getElementById("userInput").value = "";
+
+            try {
+                let response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${API_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        query: userMessage,
+                        conversation_id: conversationId,
+                        user: "test_user",
+                        response_mode: "blocking",
+                        inputs: {}
+                    })
+                });
+
+                let data = await response.json();
+                let botMessage = data.answer || "エラーが発生しました。";
+                addMessage(botMessage, "bot");
+            } catch (error) {
+                displayError("❌ メッセージ送信時のエラー: " + error.message);
+            }
+        });
+
+        function addMessage(text, sender) {
+            let chatbox = document.getElementById("chatbox");
+            let time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            let messageDiv = document.createElement("div");
+            messageDiv.classList.add("message", sender);
+
+            if (sender === "bot") {
+                let botIcon = document.createElement("img");
+                botIcon.src = botIconURL; 
+                botIcon.classList.add("bot-icon");
+                messageDiv.appendChild(botIcon);
+            }
+
+            let messageContent = document.createElement("div");
+            messageContent.classList.add("message-content");
+            messageContent.innerText = text;
+
+            let timestamp = document.createElement("div");
+            timestamp.classList.add("timestamp");
+            timestamp.innerText = time;
+
+            messageDiv.appendChild(messageContent);
+            messageDiv.appendChild(timestamp);
+            chatbox.appendChild(messageDiv);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function displayError(errorMessage) {
+            console.error(errorMessage);
+            addMessage("⚠ " + errorMessage, "bot");
+        }
+    </script>
+
+</body>
+</html>
