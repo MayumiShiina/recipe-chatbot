@@ -1,0 +1,27 @@
+/* フルスクリーン時にスマホの画面サイズにフィット */
+#chatbot-container {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#chatbot-frame {
+    width: 90vw;
+    height: 90vh;
+    border-radius: 10px;
+    background: white;
+}
+
+@media (max-width: 767px) {
+    #chatbot-frame {
+        width: 95vw;
+        height: 95vh;
+    }
+}
